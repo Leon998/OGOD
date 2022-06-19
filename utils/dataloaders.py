@@ -296,6 +296,12 @@ class LoadWebcam:  # for inference
         return 0
 
 
+def Setcamera(cap):
+    cap.set(6, cv2.VideoWriter.fourcc('M','J','P','G'))
+    cap.set(5, 30)  # 帧率
+    # cap.set(3, 960)  # width
+    # cap.set(4, 960)  # height
+
 class LoadStreams:
     # YOLOv5 streamloader, i.e. `python detect.py --source 'rtsp://example.com/media.mp4'  # RTSP, RTMP, HTTP streams`
     def __init__(self, sources='streams.txt', img_size=640, stride=32, auto=True):
@@ -322,6 +328,7 @@ class LoadStreams:
                 s = pafy.new(s).getbest(preftype="mp4").url  # YouTube URL
             s = eval(s) if s.isnumeric() else s  # i.e. s = '0' local webcam
             cap = cv2.VideoCapture(s)
+            Setcamera(cap)
             assert cap.isOpened(), f'{st}Failed to open {s}'
             w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))

@@ -198,6 +198,9 @@ def save_score_to_file(save_dir, class_score_log):
     save_score(str(save_dir / 'mouse_score.txt'), 64, class_score_log)
     save_score(str(save_dir / 'scissors_score.txt'), 76, class_score_log)
 
+def get_vid_name(source):
+    name = source[-7:-4]
+    return name
 
 def CLS(result_log):
     """
