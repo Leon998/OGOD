@@ -209,7 +209,9 @@ def run(
                 if trigger_flag[0]:
                     # 判断是否在grasping
                     im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Grasping " + trigger_flag[1])
-                    save_eval_instance(str(save_dir / str('eval_instance' + vid_name + '.txt')), target["cls"], ground_truth)
+                    eval_instance_file = str(save_dir / str('eval_instance' + vid_name + '.txt'))
+                    if not os.path.exists(eval_instance_file):
+                        save_eval_instance(eval_instance_file, target["cls"], ground_truth)
                 else:
                     im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Targeting: " + target["cls"])
                 stream_log.append(frame_log)
@@ -256,14 +258,14 @@ def run(
         frame_idx += 1
         # 至此结束当前帧
         # Print time (inference-only)
-        LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
+        # LOGGER.info(f'{s}Done. ({t3 - t2:.3f}s)')
 
     # Print results
     t = tuple(x / seen * 1E3 for x in dt)  # speeds per image
-    LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
+    # LOGGER.info(f'Speed: %.1fms pre-process, %.1fms inference, %.1fms NMS per image at shape {(1, 3, *imgsz)}' % t)
     if save_txt or save_img:
         s = f"\n{len(list(save_dir.glob('labels/*.txt')))} labels saved to {save_dir / 'labels'}" if save_txt else ''
-        LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
+        # LOGGER.info(f"Results saved to {colorstr('bold', save_dir)}{s}")
     if update:
         strip_optimizer(weights)  # update model (to fix SourceChangeWarning)
 
@@ -305,7 +307,7 @@ def parse_opt():
     parser.add_argument('--ground-truth', type=str, default='bottle', help='ground truth label of target')
     opt = parser.parse_args()
     opt.imgsz *= 2 if len(opt.imgsz) == 1 else 1  # expand
-    print_args(vars(opt))
+    # print_args(vars(opt))
     return opt
 
 
