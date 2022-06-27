@@ -193,13 +193,15 @@ def save_eval_instance(path, target, cls):
         filename.write(str(0) + '\n')
     filename.close()
 
-def save_eval_grasp(path, frame_idx):
+def save_eval_grasp(eval_grasp, trigger_flag, cls):
     """
     在eval_grasp类脚本中，用于保存预测抓取状态情况的函数
     """
-    filename = open(path, 'a')
-    filename.write(str(frame_idx) + ' ' + str(1) + '\n')
-    filename.close()
+    if trigger_flag[0] and trigger_flag[1] == cls:
+        eval_grasp.append(1)
+    else:
+        eval_grasp.append(0)
+    return eval_grasp
 
 def save_score(path, cls, class_score_log):
     """
