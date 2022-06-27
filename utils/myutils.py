@@ -3,14 +3,21 @@ import cv2
 import numpy as np
 
 
-Box_thres = [0.8 for idx in range(80)]
-Box_thres[39] = 0.8  # bottle
-Box_thres[41] = 0.7  # cup
-Box_thres[44] = 0.6  # spoon
-Box_thres[49] = 0.5  # orange
-Box_thres[64] = 0.5  # mouse
-Box_thres[76] = 0.5  # scissors
-step = 5  # 累积投票的时候，往前看几步
+# Box_thres = [0.8 for idx in range(80)]
+# Box_thres[39] = 0.8  # bottle
+# Box_thres[41] = 0.7  # cup
+# Box_thres[44] = 0.6  # spoon
+# Box_thres[49] = 0.5  # orange
+# Box_thres[64] = 0.5  # mouse
+# Box_thres[76] = 0.5  # scissors
+
+Grasp_type = ['Grasping' for idx in range(80)]
+Grasp_type[39] = 'Medium wrap: '  # bottle
+Grasp_type[41] = 'Medium wrap: '  # cup
+Grasp_type[44] = 'Tip pinch: '  # spoon
+Grasp_type[49] = 'Power sphere: '  # orange
+Grasp_type[64] = 'Tripod: '  # mouse
+Grasp_type[76] = 'Tripod: '  # scissors
 
 def get_centraloffset(xyxy, gn, normalize=False):
     """
@@ -122,15 +129,17 @@ def plot_target_box(x, im, color=(128, 128, 128), label=None, line_thickness=2):
     return img
 
 def text_on_img(im, gn, zoom, color=[0,0,255], label=None, line_thickness=2):
+    # Used for demo words
     assert im.data.contiguous, 'Image not contiguous. Apply np.ascontiguousarray(im) to plot_on_box() input image.'
     tl = line_thickness or round(0.002 * (im.shape[0] + im.shape[1]) / 2) + 1  # line/font thickness
-    scale = int(gn[1]) / 666 + 0.2
+    scale = int(gn[1]) / 250 + 0.3
     tf = int(scale)  # label字体的线宽 font thickness
     d1 = (int(gn[0] * zoom[0]), int(gn[1] * zoom[1]))
-    img = cv2.putText(im, label, (d1[0], d1[1]), 0, scale, color, thickness=tf + 1, lineType=cv2.LINE_AA)
+    img = cv2.putText(im, label, (d1[0], d1[1]), 0, scale, color, thickness=tf + 3, lineType=cv2.LINE_AA)
     return img
 
 def info_on_img(im, gn, zoom, color=[0,0,255], label=None, line_thickness=2):
+    # Used for debugging words
     assert im.data.contiguous, 'Image not contiguous. Apply np.ascontiguousarray(im) to plot_on_box() input image.'
     tl = line_thickness or round(0.002 * (im.shape[0] + im.shape[1]) / 2) + 1  # line/font thickness
     scale = int(gn[1]) / 666 + 0.2
@@ -143,20 +152,35 @@ def norm_prob(score_list):
     prob_list = []
     for i in range(len(score_list)):
         prob_list.append(round(score_list[i].item() / (sum(score_list)).item(), 4))
-    return max(prob_list)
+    return prob_list
 
-def save_eval_seq(path, target, cls, prob):
+def equal_len(seq, length=75):
+    new_seq = [0] * length
+    if len(seq)>=length:
+        new_seq[:] = seq[-length:]
+    else:
+        new_seq[length-len(seq):] = seq[:]
+    return new_seq
+
+def seq_accuracy(seq):
+    hit = 0
+    for i in seq:
+        if i >0:
+            hit += 1
+    accuracy = hit / len(seq)
+    return accuracy
+
+def save_eval_seq(eval_seq, target, cls, prob):
     """
     在eval_seq类脚本中，用于保存序列中准确预测情况的函数
     """
-    filename = open(path, 'a')
     if target == cls:  # 预测正确
-        filename.write(str(prob) + '\n')
+        eval_seq.append(prob)
     elif target == "None":  # 啥都没预测出来
-        filename.write(str(0) + '\n')
+        eval_seq.append(0)
     else:  # 预测错误
-        filename.write(str(0 - prob) + '\n')
-    filename.close()
+        eval_seq.append(0-prob)
+    return eval_seq
 
 def save_eval_instance(path, target, cls):
     """
@@ -201,6 +225,22 @@ def save_score_to_file(save_dir, class_score_log):
 def get_vid_name(source):
     name = source[-7:-4]
     return name
+
+def flag2target(name):
+    if name == 'bottle':
+        target_num = 39
+    elif name == 'cup':
+        target_num = 41
+    elif name == 'spoon':
+        target_num = 44
+    elif name == 'orange':
+        target_num = 49
+    elif name == 'mouse':
+        target_num = 64
+    else:
+        target_num = 76
+    return target_num
+
 
 def CLS(result_log):
     """
