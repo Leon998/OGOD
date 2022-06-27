@@ -111,7 +111,15 @@ def run(
         inst_dir = save_dir / 'inst'
         inst_dir.mkdir(parents=True, exist_ok=True)
         inst_path = str(inst_dir / str('eval_inst' + vid_name + '.txt'))
-        # ====================================================== Hyper-parameters ======================================== #
+        # Grasp folder
+        eval_grasp = []
+        grasp_dir = save_dir / 'grasp'
+        grasp_dir.mkdir(parents=True, exist_ok=True)
+        grasp_path = str(grasp_dir / str('eval_grasp' + vid_name + '.txt'))
+        # NPC folder
+        npc_dir = save_dir / 'npc'
+        npc_dir.mkdir(parents=True, exist_ok=True)
+        npc_path = str(npc_dir / str('npc' + vid_name + '.txt'))
         # stream_log：记录视频流每一帧累积信息的
         # class_score_lod: 80×n维的列表，表示80个类别的得分记录
         stream_log = []
@@ -119,6 +127,9 @@ def run(
         new_frame = np.zeros(80)
         frame_idx = 0
         trigger_flag = [False, "None"]
+        NPC = 0
+        last_pred = 'None'
+        # ====================================================== Hyper-parameters ======================================== #
         step = step  # 累积投票的时候，往前看几步
         Box_thres = [thres for idx in range(80)]
 
@@ -225,7 +236,10 @@ def run(
                     prob = prob_list[target_idx]
                     target = frame_log[target_idx]
                     # 这里是判断是否预测对了target
-                    save_eval_seq(eval_seq,target["cls"], ground_truth, prob)
+                    save_eval_seq(eval_seq, target["cls"], ground_truth, prob)
+                    if last_pred != target["cls"]:  # Checking number of prediction changes
+                        NPC += 1
+                    last_pred = target["cls"]
                     target_xyxy = target["xyxy"]
                     im1 = info_on_img(im0, gn, zoom=[0.45, 0.9], label="Box_x_loc: " + str(round(target["xywh"][0], 3)))
                     im1 = info_on_img(im1, gn, zoom=[0.75, 0.9], label="Box_y_loc: " + str(round(target["xywh"][1], 3)))
@@ -257,6 +271,9 @@ def run(
                 # 记录当前帧Trigger_flag的状态
                 im1 = text_on_img(im1, gn, zoom=[0.05, 0.2], color=[0, 0, 255],
                                           label="Flag on" if trigger_flag[0] else "Flag off")
+
+                if os.path.exists(inst_path):  # Here it shows that the trigger has been made
+                    save_eval_grasp(eval_grasp, trigger_flag, ground_truth)
 
                 # Stream results
                 # im0 = annotator.result()
@@ -310,6 +327,15 @@ def run(
         accuracy = seq_accuracy(equal_eval_seq)
         filename = open(seq_acc_path, 'a')
         filename.write(str(accuracy) + '\n')
+        filename.close()
+        # Saving grasping evaluaion
+        filename = open(grasp_path, 'a')
+        for i in eval_grasp:
+            filename.write(str(i) + '\n')
+        filename.close()
+        # Saving NPC
+        filename = open(npc_path, 'a')
+        filename.write(str(NPC) + '\n')
         filename.close()
         # 把所有class都保存到file
         # save_score_to_file(save_dir, class_score_log)
