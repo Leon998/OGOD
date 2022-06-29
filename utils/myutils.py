@@ -162,6 +162,14 @@ def equal_len(seq, length=75):
         new_seq[length-len(seq):] = seq[:]
     return new_seq
 
+def list_sum(a,b):
+    c = list(map(lambda x:x[0]+x[1],zip(a,b)))
+    return c
+
+def list_mean(a,times):
+    c = [x / times for x in a]
+    return c
+
 def seq_accuracy(seq):
     hit = 0
     for i in seq:
@@ -169,6 +177,17 @@ def seq_accuracy(seq):
             hit += 1
     accuracy = hit / len(seq)
     return accuracy
+
+def save_file_discrete(path, var):
+    filename = open(path, 'a')
+    filename.write(str(var) + '\n')
+    filename.close()
+
+def save_file_continue(path, list):
+    filename = open(path, 'a')
+    for i in list:
+        filename.write(str(i) + '\n')
+    filename.close()
 
 def save_eval_seq(eval_seq, target, cls, prob):
     """
@@ -182,7 +201,7 @@ def save_eval_seq(eval_seq, target, cls, prob):
         eval_seq.append(0-prob)
     return eval_seq
 
-def save_eval_instance(path, target, cls):
+def save_eval_instance_2file(path, target, cls):
     """
     在eval_instance类脚本中，用于保存整体预测情况的函数
     """
@@ -193,6 +212,16 @@ def save_eval_instance(path, target, cls):
         filename.write(str(0) + '\n')
     filename.close()
 
+def save_eval_instance(eval_inst, target, cls, instance):
+    """
+    在eval_instance类脚本中，用于保存整体预测情况的函数
+    """
+    if target == cls:  # 预测正确
+        eval_inst[instance] = 1
+    else:  # 预测错误
+        eval_inst[instance] = 0
+    return eval_inst
+
 def save_eval_grasp(eval_grasp, trigger_flag, cls):
     """
     在eval_grasp类脚本中，用于保存预测抓取状态情况的函数
@@ -201,6 +230,15 @@ def save_eval_grasp(eval_grasp, trigger_flag, cls):
         eval_grasp.append(1)
     else:
         eval_grasp.append(0)
+    return eval_grasp
+
+def check_gp(eval_grasp):
+    flag = 1
+    for i in eval_grasp:
+        if i != 1:
+            flag = 0
+            break
+    eval_grasp.append(flag)
     return eval_grasp
 
 def save_score(path, cls, class_score_log):
@@ -242,23 +280,3 @@ def flag2target(name):
     else:
         target_num = 76
     return target_num
-
-
-def CLS(result_log):
-    """
-    种类定位抑制（Class Localization Suppression），在一定位置范围内的目标只能有一个种类和预测框输出
-    发现种类抑制函数貌似并不是必须的？因为同一个位置的目标就算有两个输出，预测种类都是类似的，因此不影响对target的判断。
-    这样输出累积的score就会有两个target非常相似，如果它们都是最高值（或相差很少），那么那个时候再做抑制就可以了；
-    如果它们都不是最高值，那么说明在决策的时候可以直接忽略，都不是target。
-    """
-    for i, item in enumerate(result_log):
-        # 先计算相邻元素坐标，小于某个阈值就标记为抑制——聚类？
-        # 抑制之后重新输出一个新的result_log，留下来的种类是conf最大的那一个
-        pass
-    pass
-
-def object_tracking():
-    """
-    对每一帧的各个目标按位置进行编号追踪
-    """
-    pass
