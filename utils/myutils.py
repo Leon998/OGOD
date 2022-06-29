@@ -201,25 +201,14 @@ def save_eval_seq(eval_seq, target, cls, prob):
         eval_seq.append(0-prob)
     return eval_seq
 
-def save_eval_instance_2file(path, target, cls):
-    """
-    在eval_instance类脚本中，用于保存整体预测情况的函数
-    """
-    filename = open(path, 'a')
-    if target == cls:  # 预测正确
-        filename.write(str(1) + '\n')
-    else:  # 预测错误
-        filename.write(str(0) + '\n')
-    filename.close()
-
-def save_eval_instance(eval_inst, target, cls, instance):
+def save_eval_instance(eval_inst, target, cls):
     """
     在eval_instance类脚本中，用于保存整体预测情况的函数
     """
     if target == cls:  # 预测正确
-        eval_inst[instance] = 1
+        eval_inst.append(1)
     else:  # 预测错误
-        eval_inst[instance] = 0
+        eval_inst.append(0)
     return eval_inst
 
 def save_eval_grasp(eval_grasp, trigger_flag, cls):
