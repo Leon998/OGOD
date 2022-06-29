@@ -1,5 +1,6 @@
 import argparse
 import os
+import shutil
 import sys
 from pathlib import Path
 import time
@@ -64,7 +65,8 @@ def run(
         source_list.append(i)
     # Directories
     save_dir = Path(project) / name  # evals/object
-    # save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
+    if os.path.exists(save_dir):
+        shutil.rmtree(save_dir)
     (save_dir).mkdir(parents=True, exist_ok=True)  # make dir
     # Load model
     device = select_device(device)
@@ -75,8 +77,8 @@ def run(
     instance = 0
     seq_length = 75
     sum_seq = [0] * seq_length  # saving to SP.txt
-    sum_seq_acc = 0  # saving to SP_acc.txt
-    sum_inst = [0] * len(source_list)  # saving to IP.txt
+    sum_seq_acc = []  # saving to SP_acc.txt
+    sum_inst = []  # saving to IP.txt
     sum_grasp = []  # saving to GP.txt
     sum_NPC = []  # saving to NPC.txt
 
@@ -119,15 +121,18 @@ def run(
         (seq_dir / 'acc').mkdir(parents=True, exist_ok=True)
         seq_acc_path = str(seq_dir / 'acc' / str('eval_seq_acc' + vid_name + '.txt'))
         # Instance folder
+        eval_inst = []
         inst_dir = save_dir / 'inst'
         inst_dir.mkdir(parents=True, exist_ok=True)
-        inst_path = str(inst_dir / str('sum_inst' + vid_name + '.txt'))
+        inst_path = str(inst_dir / str('eval_inst' + vid_name + '.txt'))
         # Grasp folder
         eval_grasp = []
         grasp_dir = save_dir / 'grasp'
         grasp_dir.mkdir(parents=True, exist_ok=True)
         grasp_path = str(grasp_dir / str('eval_grasp' + vid_name + '.txt'))
         # NPC folder
+        NPC = 0
+        last_pred = 'None'
         npc_dir = save_dir / 'npc'
         npc_dir.mkdir(parents=True, exist_ok=True)
         npc_path = str(npc_dir / str('npc' + vid_name + '.txt'))
@@ -139,8 +144,6 @@ def run(
         new_frame = np.zeros(80)
         frame_idx = 0
         trigger_flag = [False, "None"]
-        NPC = 0
-        last_pred = 'None'
 
         for path, im, im0s, vid_cap, s in dataset:
             # 分数记录
@@ -260,8 +263,7 @@ def run(
                         # 判断是否在grasping
                         im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Grasping " + trigger_flag[1])
                         if not_trigger:
-                            save_eval_instance(sum_inst, target["cls"], ground_truth, instance)
-                            save_eval_instance_2file(inst_path, target["cls"], ground_truth)
+                            save_eval_instance(eval_inst, target["cls"], ground_truth)
                             not_trigger = 0
                     else:
                         im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Targeting: " + target["cls"])
@@ -334,11 +336,17 @@ def run(
         save_file_continue(seq_path, equal_eval_seq)
         # Saving accuracy of the sequence
         accuracy = seq_accuracy(equal_eval_seq)
-        sum_seq_acc += accuracy
+        sum_seq_acc.append(accuracy)
         save_file_discrete(seq_acc_path, accuracy)
-        # Saving grasping evaluaion
-        if len(eval_grasp):
-            sum_grasp.append(eval_grasp[-1])
+        # Saving instance evaluation
+        if not len(eval_inst):
+            eval_inst.append(0)
+        sum_inst.append(eval_inst[-1])
+        save_file_discrete(inst_path, eval_inst[0])
+        # Saving grasping evaluation
+        if not len(eval_grasp):
+            eval_grasp.append(0)
+        sum_grasp.append(eval_grasp[-1])
         save_file_continue(grasp_path, eval_grasp)
         # Saving NPC
         save_file_discrete(npc_path, NPC)
@@ -353,8 +361,9 @@ def run(
     mean_seq = list_mean(sum_seq, len(source_list))
     save_file_continue(save_dir / 'SP.txt', mean_seq)
     # Calculating SP accuracy
-    mean_acc = sum_seq_acc / len(source_list)
-    save_file_discrete(save_dir / 'SP_acc.txt', mean_acc)
+    mean_acc = sum(sum_seq_acc) / len(source_list)
+    sum_seq_acc.append(mean_acc)
+    save_file_continue(save_dir / 'SP_acc.txt', sum_seq_acc)
     # Calculating IP mean
     mean_inst = sum(sum_inst) / len(sum_inst)
     sum_inst.append(mean_inst)
