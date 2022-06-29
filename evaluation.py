@@ -52,6 +52,9 @@ def run(
         thres=0.8,
 ):
     classes = [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 52, 53, 54, 55, 64, 65, 67, 74, 76, 79]
+    name = object
+    ground_truth = object
+    # prepare the sources
     filePath = '/home/shixu/My_env/Dataset/object/' + object
     name_list = os.listdir(filePath)
     name_list.sort()
@@ -59,12 +62,31 @@ def run(
     for i in name_list:
         i = filePath + '/' + i
         source_list.append(i)
+    # Directories
+    save_dir = Path(project) / name  # evals/object
+    # save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
+    (save_dir).mkdir(parents=True, exist_ok=True)  # make dir
+    # Load model
+    device = select_device(device)
+    model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
+    stride, names, pt = model.stride, model.names, model.pt
+    imgsz = check_img_size(imgsz, s=stride)  # check image size
+    # ============================================= initialize evaluation results===================================== #
+    instance = 0
+    seq_length = 75
+    sum_seq = [0] * seq_length  # saving to SP.txt
+    sum_seq_acc = 0  # saving to SP_acc.txt
+    sum_inst = [0] * len(source_list)  # saving to IP.txt
+    sum_grasp = []  # saving to GP.txt
+    sum_NPC = []  # saving to NPC.txt
+
+    # ================================================== Hyper-parameters ============================================ #
+    step = step  # 累积投票的时候，往前看几步
+    Box_thres = [thres for idx in range(80)]
 
     for source in source_list:
+        not_trigger = 1
         # For every video, run the process
-        name = object
-        ground_truth = object
-        # source = str(source)
         vid_name = get_vid_name(source)
         save_img = not nosave and not source.endswith('.txt')  # save inference images
         is_file = Path(source).suffix[1:] in (IMG_FORMATS + VID_FORMATS)
@@ -72,17 +94,6 @@ def run(
         webcam = source.isnumeric() or source.endswith('.txt') or (is_url and not is_file)
         if is_url and is_file:
             source = check_file(source)  # download
-
-        # Directories
-        save_dir = Path(project) / name
-        # save_dir = increment_path(Path(project) / name, exist_ok=exist_ok)  # increment run
-        (save_dir).mkdir(parents=True, exist_ok=True)  # make dir
-
-        # Load model
-        device = select_device(device)
-        model = DetectMultiBackend(weights, device=device, dnn=dnn, data=data, fp16=half)
-        stride, names, pt = model.stride, model.names, model.pt
-        imgsz = check_img_size(imgsz, s=stride)  # check image size
 
         # Dataloader
         if webcam:
@@ -99,7 +110,7 @@ def run(
         model.warmup(imgsz=(1 if pt else bs, 3, *imgsz))  # warmup
         dt, seen = [0.0, 0.0, 0.0], 0
         t0 = time.time()
-
+        # ===============================initialize evaluation results for each time/source=========================== #
         # Sequence folder
         eval_seq = []
         seq_dir = save_dir / 'seq'
@@ -110,7 +121,7 @@ def run(
         # Instance folder
         inst_dir = save_dir / 'inst'
         inst_dir.mkdir(parents=True, exist_ok=True)
-        inst_path = str(inst_dir / str('eval_inst' + vid_name + '.txt'))
+        inst_path = str(inst_dir / str('sum_inst' + vid_name + '.txt'))
         # Grasp folder
         eval_grasp = []
         grasp_dir = save_dir / 'grasp'
@@ -120,6 +131,7 @@ def run(
         npc_dir = save_dir / 'npc'
         npc_dir.mkdir(parents=True, exist_ok=True)
         npc_path = str(npc_dir / str('npc' + vid_name + '.txt'))
+        # =============================== information logs ========================================== #
         # stream_log：记录视频流每一帧累积信息的
         # class_score_lod: 80×n维的列表，表示80个类别的得分记录
         stream_log = []
@@ -129,9 +141,6 @@ def run(
         trigger_flag = [False, "None"]
         NPC = 0
         last_pred = 'None'
-        # ====================================================== Hyper-parameters ======================================== #
-        step = step  # 累积投票的时候，往前看几步
-        Box_thres = [thres for idx in range(80)]
 
         for path, im, im0s, vid_cap, s in dataset:
             # 分数记录
@@ -224,7 +233,6 @@ def run(
                     # ==================================TargetChoosing===================================== #
                     # Not voting
                     # target_idx = score_list.index(max(score_list))  # 这一步可以修改成voting之类的方式
-
                     # Voting
                     if frame_idx < step:
                         target_idx = score_list.index(max(score_list))  # 注意这里是因为之前保持了score_list和frame_log的目标索引是一样的
@@ -251,8 +259,10 @@ def run(
                     if trigger_flag[0]:
                         # 判断是否在grasping
                         im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Grasping " + trigger_flag[1])
-                        if not os.path.exists(inst_path):
-                            save_eval_instance(inst_path, target["cls"], ground_truth)
+                        if not_trigger:
+                            save_eval_instance(sum_inst, target["cls"], ground_truth, instance)
+                            save_eval_instance_2file(inst_path, target["cls"], ground_truth)
+                            not_trigger = 0
                     else:
                         im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Targeting: " + target["cls"])
                     stream_log.append(frame_log)
@@ -272,8 +282,9 @@ def run(
                 im1 = text_on_img(im1, gn, zoom=[0.05, 0.2], color=[0, 0, 255],
                                           label="Flag on" if trigger_flag[0] else "Flag off")
 
-                if os.path.exists(inst_path):  # Here it shows that the trigger has been made
-                    save_eval_grasp(eval_grasp, trigger_flag, ground_truth)
+                if not not_trigger:
+                    eval_grasp = save_eval_grasp(eval_grasp, trigger_flag, ground_truth)
+                    eval_grasp = check_gp(eval_grasp)
 
                 # Stream results
                 # im0 = annotator.result()
@@ -316,29 +327,47 @@ def run(
         # 打印预测的总时间
         print(frame_idx)
         print(f'Done. ({time.time() - t0:.3f}s)')
-        # =================================== saving evaluation results================================== #
+        # ============================ saving evaluation results for a single source time============================= #
         # 保存seq评估，并保持长度一致
-        equal_eval_seq = equal_len(eval_seq)
-        filename = open(seq_path, 'a')
-        for i in equal_eval_seq:
-            filename.write(str(i) + '\n')
-        filename.close()
+        equal_eval_seq = equal_len(eval_seq,seq_length)
+        sum_seq = list_sum(sum_seq, equal_eval_seq)
+        save_file_continue(seq_path, equal_eval_seq)
         # Saving accuracy of the sequence
         accuracy = seq_accuracy(equal_eval_seq)
-        filename = open(seq_acc_path, 'a')
-        filename.write(str(accuracy) + '\n')
-        filename.close()
+        sum_seq_acc += accuracy
+        save_file_discrete(seq_acc_path, accuracy)
         # Saving grasping evaluaion
-        filename = open(grasp_path, 'a')
-        for i in eval_grasp:
-            filename.write(str(i) + '\n')
-        filename.close()
+        if len(eval_grasp):
+            sum_grasp.append(eval_grasp[-1])
+        save_file_continue(grasp_path, eval_grasp)
         # Saving NPC
-        filename = open(npc_path, 'a')
-        filename.write(str(NPC) + '\n')
-        filename.close()
+        save_file_discrete(npc_path, NPC)
+        sum_NPC.append(NPC)
         # 把所有class都保存到file
         # save_score_to_file(save_dir, class_score_log)
+
+        instance += 1
+
+    # ============================================ saving evaluation results========================================== #
+    # Calculating SP
+    mean_seq = list_mean(sum_seq, len(source_list))
+    save_file_continue(save_dir / 'SP.txt', mean_seq)
+    # Calculating SP accuracy
+    mean_acc = sum_seq_acc / len(source_list)
+    save_file_discrete(save_dir / 'SP_acc.txt', mean_acc)
+    # Calculating IP mean
+    mean_inst = sum(sum_inst) / len(sum_inst)
+    sum_inst.append(mean_inst)
+    save_file_continue(save_dir / 'IP.txt', sum_inst)
+    # Calculating GP mean
+    mean_grasp = sum(sum_grasp) / len(sum_grasp)
+    sum_grasp.append(mean_grasp)
+    save_file_continue(save_dir / 'GP.txt', sum_grasp)
+    # Calculating NPC mean
+    mean_NPC = sum(sum_NPC) / len(sum_NPC)
+    sum_NPC.append(mean_NPC)
+    save_file_continue(save_dir / 'NPC.txt', sum_NPC)
+
 
 
 def parse_opt():
