@@ -206,9 +206,7 @@ def save_eval_instance(eval_inst, target, cls):
     在eval_instance类脚本中，用于保存整体预测情况的函数
     """
     if target == cls:  # 预测正确
-        eval_inst.append(1)
-    else:  # 预测错误
-        eval_inst.append(0)
+        eval_inst = 1
     return eval_inst
 
 def save_eval_grasp(eval_grasp, trigger_flag, cls):
