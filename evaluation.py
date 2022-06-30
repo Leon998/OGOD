@@ -121,7 +121,7 @@ def run(
         (seq_dir / 'acc').mkdir(parents=True, exist_ok=True)
         seq_acc_path = str(seq_dir / 'acc' / str('eval_seq_acc' + vid_name + '.txt'))
         # Instance folder
-        eval_inst = []
+        eval_inst = 0
         inst_dir = save_dir / 'inst'
         inst_dir.mkdir(parents=True, exist_ok=True)
         inst_path = str(inst_dir / str('eval_inst' + vid_name + '.txt'))
@@ -263,7 +263,7 @@ def run(
                         # 判断是否在grasping
                         im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Grasping " + trigger_flag[1])
                         if not_trigger:
-                            save_eval_instance(eval_inst, target["cls"], ground_truth)
+                            eval_inst = save_eval_instance(eval_inst, target["cls"], ground_truth)
                             not_trigger = 0
                     else:
                         im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Targeting: " + target["cls"])
@@ -339,10 +339,8 @@ def run(
         sum_seq_acc.append(accuracy)
         save_file_discrete(seq_acc_path, accuracy)
         # Saving instance evaluation
-        if not len(eval_inst):
-            eval_inst.append(0)
-        sum_inst.append(eval_inst[-1])
-        save_file_discrete(inst_path, eval_inst[0])
+        sum_inst.append(eval_inst)
+        save_file_discrete(inst_path, eval_inst)
         # Saving grasping evaluation
         if not len(eval_grasp):
             eval_grasp.append(0)

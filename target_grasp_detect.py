@@ -50,6 +50,8 @@ def run(
         half=False,  # use FP16 half-precision inference
         dnn=False,  # use OpenCV DNN for ONNX inference
         ground_truth='bottle',
+        step=1,
+        thres=0.8,
 ):
     source = str(source)
     save_img = not nosave and not source.endswith('.txt')  # save inference images
@@ -91,6 +93,9 @@ def run(
     new_frame = np.zeros(80)
     frame_idx = 0
     trigger_flag = [False, "None"]
+    # ================================================== Hyper-parameters ============================================ #
+    step = step  # 累积投票的时候，往前看几步
+    Box_thres = [thres for idx in range(80)]
 
     for path, im, im0s, vid_cap, s in dataset:
         # 分数记录
@@ -193,8 +198,6 @@ def run(
                 # 归一法计算概率
                 prob = norm_prob(score_list)
                 target = frame_log[target_idx]
-                # 这里是判断是否预测对了target
-                save_eval_seq(str(save_dir / 'eval_seq.txt'), target["cls"], ground_truth, prob)
                 target_xyxy = target["xyxy"]
                 im1 = info_on_img(im0, gn, zoom=[0.45, 0.9], label="Box_x_loc: " + str(round(target["xywh"][0], 3)))
                 im1 = info_on_img(im1, gn, zoom=[0.75, 0.9], label="Box_y_loc: " + str(round(target["xywh"][1], 3)))
@@ -206,14 +209,11 @@ def run(
                 if trigger_flag[0]:
                     # 判断是否在grasping
                     im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Grasping " + trigger_flag[1])
-                    save_eval_instance(str(save_dir / 'eval_instance.txt'), target["cls"], ground_truth)
                 else:
                     im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Targeting: " + target["cls"])
                 stream_log.append(frame_log)
 
             else:
-                # 如果没有预测出目标
-                save_eval_seq(str(save_dir / 'eval_seq.txt'), "None", ground_truth, 0)
                 trigger_flag = check_trigger_null(trigger_flag)
                 if trigger_flag[0]:
                     im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Grasping " + trigger_flag[1])
@@ -267,8 +267,7 @@ def run(
     # 打印预测的总时间
     print(frame_idx)
     print(f'Done. ({time.time() - t0:.3f}s)')
-    # 把所有class都保存到file
-    save_score_to_file(save_dir, class_score_log)
+
 
 
 def parse_opt():
