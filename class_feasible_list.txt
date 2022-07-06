@@ -1,0 +1,16 @@
+32 sports ball
+39 bottle
+40 wine glass
+41 cup
+42 fork
+43 knife
+44 spoon
+45 bowl
+46 banana
+47 apple
+49 orange
+64 mouse
+65 remote
+67 cell phone
+74 clock
+76 scissors
