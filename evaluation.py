@@ -52,7 +52,7 @@ def run(
         step=1,
         thres=0.8,
 ):
-    classes = [39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 52, 53, 54, 55, 64, 65, 67, 74, 76, 79]
+    classes = [32, 39, 40, 41, 42, 43, 44, 45, 46, 47, 49, 64, 65, 67, 74, 76]
     name = object
     ground_truth = object
     # prepare the sources
@@ -247,16 +247,16 @@ def run(
                     prob = prob_list[target_idx]
                     target = frame_log[target_idx]
                     # 这里是判断是否预测对了target
-                    save_eval_seq(eval_seq, target["cls"], ground_truth, prob)
+                    eval_seq = save_eval_seq(eval_seq, target["cls"], ground_truth, prob)
                     if last_pred != target["cls"]:  # Checking number of prediction changes
                         NPC += 1
                     last_pred = target["cls"]
                     target_xyxy = target["xyxy"]
-                    im1 = info_on_img(im0, gn, zoom=[0.45, 0.9], label="Box_x_loc: " + str(round(target["xywh"][0], 3)))
-                    im1 = info_on_img(im1, gn, zoom=[0.75, 0.9], label="Box_y_loc: " + str(round(target["xywh"][1], 3)))
-                    im1 = info_on_img(im1, gn, zoom=[0.45, 0.95], label="Box_size: " + str(round(target["box_size"], 3)))
-                    im1 = info_on_img(im1, gn, zoom=[0.75, 0.95], label="Box_rate: " + str(round(target["box_rate"], 3)))
-                    im1 = info_on_img(im1, gn, zoom=[0.75, 0.85], label="Score: " + str(round(target["score"].item(), 3)))
+                    im1 = info_on_img(im0, gn, zoom=[0.5, 0.75], label="Box_x_loc: " + str(round(target["xywh"][0], 3)))
+                    im1 = info_on_img(im1, gn, zoom=[0.5, 0.8], label="Box_y_loc: " + str(round(target["xywh"][1], 3)))
+                    im1 = info_on_img(im1, gn, zoom=[0.5, 0.85], label="Box_size: " + str(round(target["box_size"], 3)))
+                    im1 = info_on_img(im1, gn, zoom=[0.5, 0.9], label="Box_rate: " + str(round(target["box_rate"], 3)))
+                    im1 = info_on_img(im1, gn, zoom=[0.5, 0.95], label="Score: " + str(round(target["score"].item(), 3)))
                     im1 = plot_target_box(target_xyxy, im1, color=colors(0, True), line_thickness=2)
                     trigger_flag = check_trigger(target["box_rate"], target["xywh"], target["cls"], trigger_flag)
                     if trigger_flag[0]:
@@ -271,7 +271,7 @@ def run(
 
                 else:
                     # 如果没有预测出目标
-                    save_eval_seq(eval_seq, "None", ground_truth, 0)
+                    eval_seq = save_eval_seq(eval_seq, "None", ground_truth, float(0))
                     trigger_flag = check_trigger_null(trigger_flag)
                     if trigger_flag[0]:
                         im1 = text_on_img(im1, gn, zoom=[0.05, 0.95], label="Grasping " + trigger_flag[1])
