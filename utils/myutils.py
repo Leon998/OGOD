@@ -19,7 +19,7 @@ Grasp_type[49] = 'Power sphere: '  # orange
 Grasp_type[64] = 'Tripod: '  # mouse
 Grasp_type[76] = 'Tripod: '  # scissors
 
-def get_centraloffset(xyxy, gn, normalize=False):
+def get_centraloffset(xyxy, gn, normalize=True):
     """
     计算的是边界框中心与整个画面中心的L2距离（默认为像素距离，normalize后为归一化的结果），其中
     归一化的方式为L2像素距离除以一半对角线像素长度，越接近0表示离中心越近，约接近1表示离中心越远
@@ -32,6 +32,8 @@ def get_centraloffset(xyxy, gn, normalize=False):
         cft = cft.sqrt() / i2c
     else:
         cft = cft.sqrt()
+    if cft == 0:
+        cft += 0.001
     return cft
 
 def get_centeroffset_2version(xywh, normalize=False):
@@ -132,17 +134,17 @@ def text_on_img(im, gn, zoom, color=[0,0,255], label=None, line_thickness=2):
     # Used for demo words
     assert im.data.contiguous, 'Image not contiguous. Apply np.ascontiguousarray(im) to plot_on_box() input image.'
     tl = line_thickness or round(0.002 * (im.shape[0] + im.shape[1]) / 2) + 1  # line/font thickness
-    scale = int(gn[1]) / 250 + 0.3
+    scale = int(gn[1]) / 400
     tf = int(scale)  # label字体的线宽 font thickness
     d1 = (int(gn[0] * zoom[0]), int(gn[1] * zoom[1]))
-    img = cv2.putText(im, label, (d1[0], d1[1]), 0, scale, color, thickness=tf + 3, lineType=cv2.LINE_AA)
+    img = cv2.putText(im, label, (d1[0], d1[1]), 0, scale, color, thickness=tf + 1, lineType=cv2.LINE_AA)
     return img
 
 def info_on_img(im, gn, zoom, color=[0,0,255], label=None, line_thickness=2):
     # Used for debugging words
     assert im.data.contiguous, 'Image not contiguous. Apply np.ascontiguousarray(im) to plot_on_box() input image.'
     tl = line_thickness or round(0.002 * (im.shape[0] + im.shape[1]) / 2) + 1  # line/font thickness
-    scale = int(gn[1]) / 666 + 0.2
+    scale = int(gn[1]) / 400
     tf = int(scale)  # label字体的线宽 font thickness
     d1 = (int(gn[0] * zoom[0]), int(gn[1] * zoom[1]))
     img = cv2.putText(im, label, (d1[0], d1[1]), 0, scale, color, thickness=tf + 1, lineType=cv2.LINE_AA)
@@ -196,9 +198,9 @@ def save_eval_seq(eval_seq, target, cls, prob):
     if target == cls:  # 预测正确
         eval_seq.append(prob)
     elif target == "None":  # 啥都没预测出来
-        eval_seq.append(0)
+        eval_seq.append(float(0))
     else:  # 预测错误
-        eval_seq.append(0-prob)
+        eval_seq.append(float(0)-prob)
     return eval_seq
 
 def save_eval_instance(eval_inst, target, cls):
